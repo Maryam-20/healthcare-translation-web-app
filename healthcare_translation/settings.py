@@ -162,5 +162,6 @@ LOGGING = {
 }
 
 LOGIN_REDIRECT_URL = '/'  # Redirect to the home page after login
+LOGIN_URL = '/login/'  # Redirect to the login page
 
   
