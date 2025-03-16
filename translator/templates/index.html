@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% load static %} 
+    <title>Healthcare Translator</title>
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+    <script src="https://unpkg.com/htmx.org@1.9.6"></script>
+    <style>
+        /* Mobile-first styles */
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 0; /* Remove default margin */
+            background-color: #f4f4f4; /* Light background for better contrast */
+        }
+        @media (min-width: 600px) {
+            body {
+                margin: 0; /* Ensure no margin on larger screens */
+            }
+        }
+        h1 {
+            color: #333; /* Darker color for headings */
+        }
+        /* Navbar styles */
+        .navbar {
+            background-color: #007bff; /* Bootstrap primary color */
+            padding: 10px;
+            color: white;
+            position: fixed; /* Fix the navbar at the top */
+            top: 0; /* Align to the top */
+            left: 0; /* Align to the left */
+            right: 0; /* Align to the right */
+            z-index: 1000; /* Ensure it stays above other content */
+        }
+        .navbar a {
+            color: white;
+            text-decoration: none;
+            margin: 0 15px;
+        }
+        .navbar a:hover {
+            text-decoration: underline;
+        }
+        h1{
+            margin-top: 90px;
+        }
+        label {
+            display: block;
+            margin: 10px 0 5px; /* Spacing for labels */
+        }
+        input[type="text"], select {
+            width: 90%; /* Full width for inputs */
+            padding: 10px;
+            margin: 5px 0 20px; /* Spacing for inputs */
+            border: 1px solid #ccc; /* Light border */
+            border-radius: 5px; /* Rounded corners */
+        }
+        button {
+            padding: 10px 20px;
+            background-color: blue;
+            color: white;
+            border: none;
+            border-radius: 5px; /* Rounded corners for buttons */
+            cursor: pointer;
+            transition: background-color 0.3s; /* Smooth transition for hover effect */
+        }
+        button:hover {
+            background-color: darkblue;
+        }
+        #transcripts {
+            margin-top: 80px; /* Add margin to avoid overlap with fixed navbar */
+            background-color: #fff; /* White background for transcripts */
+            padding: 15px;
+            border-radius: 5px; /* Rounded corners */
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
+        }
+        h2 {
+            color: #555; /* Slightly lighter color for subheadings */
+        }
+        .listening {
+            color: red; /* Change color to indicate listening */
+        }
+        #speakT{
+            margin-top: 20px
+        }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <a href="{% url 'home' %}">Home</a>
+        <a href="{% url 'logout' %}">Logout</a>
+    </div>
+
+    <h1>Healthcare Translation App</h1>
+    
+    <label for="input_language">Select Input Language:</label>
+    <select name="input_language" id="input_language">
+        <option value="en">English</option>
+        <option value="es">Spanish</option>
+        <option value="fr">French</option>
+    </select>
+
+    <label for="output_language">Select Output Language:</label>
+    <select name="output_language" id="output_language">
+        <option value="es">Spanish</option>
+        <option value="fr">French</option>
+        <option value="en">English</option>
+    </select>
+
+    <button id="recordButton" onclick="startRecording()">Start Recording</button>
+    <button id="stopButton" onclick="stopRecording()" style="display:none;">Stop Recording</button>
+
+    <div id="transcripts">
+        <h2>Original Transcript:</h2>
+        <p id="original_transcript"></p>
+        <h2>Translated Transcript:</h2>
+        <p id="translated_transcript" class="listening"></p> <!-- Add class for styling -->
+    </div>
+    
+    <button id="speakT" onclick="speakText()">Speak Translated Text</button>
+
+    <script>
+        let recognition;
+        function startRecording() {
+            const inputLanguage = document.getElementById("input_language").value;
+            recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+            recognition.lang = inputLanguage;
+            recognition.interimResults = true; // Allow interim results for ongoing transcription
+            recognition.continuous = true; // Allow continuous recognition
+
+            // Change button appearance and show listening message
+            const recordButton = document.getElementById("recordButton");
+            const stopButton = document.getElementById("stopButton");
+            recordButton.style.display = "none"; // Hide start button
+            stopButton.style.display = "inline"; // Show stop button
+
+            recognition.onresult = function(event) {
+                const transcript = event.results[event.results.length - 1][0].transcript; // Get the latest result
+                document.getElementById("original_transcript").innerText += transcript + " "; // Append to the transcript
+                console.log("Transcript: ", transcript);
+                
+                // Send for real-time translation
+                sendTranslationRequest(transcript);
+            };
+
+            recognition.onerror = function(event) {
+                console.error("Speech recognition error: ", event.error);
+            };
+
+            recognition.onend = function() {
+                console.log("Speech recognition service disconnected");
+                // Reset button appearance
+                recordButton.style.display = "inline"; // Show start button
+                stopButton.style.display = "none"; // Hide stop button
+            };
+
+            recognition.start();
+        }
+
+        function stopRecording() {
+            if (recognition) {
+                recognition.stop(); // Stop the speech recognition
+            }
+        }
+
+        function sendTranslationRequest(text) {
+            const outputLanguage = document.getElementById("output_language").value;
+
+            if (!text) {
+                console.error("No text to translate");
+                return;
+            }
+
+            fetch("/api/translate/", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ text: text, language: outputLanguage })
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById("translated_transcript").innerText = data.translated_text || data.error;
+            })
+            .catch(error => {
+                console.error("Error:", error);
+            });
+        }
+
+        function speakText() {
+            const text = document.getElementById("translated_transcript").innerText;
+            const utterance = new SpeechSynthesisUtterance(text);
+            speechSynthesis.speak(utterance);
+        }
+    </script>
+</body>
+</html>
+
