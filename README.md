@@ -143,9 +143,3 @@ provides live translation, and offers audio playback—improving interactions be
 ## 📜 License
 
 This project is licensed under the [MIT License](https://opensource.org/licenses/MIT).
-
----
-
-Feel free to open an issue or submit a pull request for improvements or ideas! 💡
-
-Would you like me to create a `README.md` file and add this into your project directory too?
